@@ -5,7 +5,7 @@ import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'SPLABSTOCK - ระบบบริหารจัดการสต็อก',
+  title: 'LABSTOCKSP - ระบบบริหารจัดการสต็อก',
   description: 'ระบบบริหารจัดการสต็อกพัสดุและเวชภัณฑ์',
 };
 
