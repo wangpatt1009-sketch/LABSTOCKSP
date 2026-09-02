@@ -11,7 +11,7 @@ const officeSupplies = [
 
 const medicalSupplies = [
   "DISPOSIBLE SYRINGE 3 C.C.", "DISPOSIBLE SYRINGE 5 CC.", "DISPOSIBLE SYRINGE 10 CC.",
-  "Isolation Grown Lamonate 26 gms. (กาวน์กันน้ำ)", "Ethyl Alcohol gel 70% ล้างมือ",
+  "Isolation Grown Lamonate 26 gms. (กาวน์กันน้ำ)","ก๊อซ OFF IV 2 ก้อน", "ก๊อซ OFF IV 15 ก้อน", "Ethyl Alcohol gel 70% ล้างมือ",
   "Latex tube (สายรัดแขนเจาะเลือด)", "ACCU-Check guie (Strip DTX)", "Tensoplast (พลาสเตอร์ปิดแผล)",
   "Water less เช็ดโต๊ะ (75%Alcohol)", "เข็มเจาะปลายนิ้ว สำหรับตรวจหาระดับน้ำตาล",
   "Surgical Mask N95 แบบคล้องหู", "MASK DISPOSSEBLE (แมสเขียว)", "MICROPORE 3M 1\" X10 yds.",
@@ -27,7 +27,7 @@ const medicalSupplies = [
 
 const initialData = [
   { id: 1, category: "พัสดุสำนักงาน", name: "กระดาษ A4", lot: "LOT-6901", expire: "-", count: 55, unit: "รีม", status: "ปกติ", auditDate: "2026-09-01" },
-  { id: 2, category: "เวชภัณฑ์ที่ไม่ใช่ยา", name: "DISPOSIBLE SYRINGE 3 C.C.", lot: "77744UN25", expire: "2026-11-06", count: 2, unit: "กล่อง", status: "ใกล้หมดอายุ", auditDate: "2026-09-01" },
+  { id: 2, category: "เวชภัณฑ์ที่ไม่ใช่ยา", name: "DISPOSIBLE SYRINGE 3 C.C.", lot: "77744UN25", expire: "2026-11-06", count: 2, unit: "กล่อง", status: "ใกล้หมด", auditDate: "2026-09-01" },
 ];
 
 export default function StockApp() {
@@ -75,15 +75,19 @@ export default function StockApp() {
       return;
     }
 
+    const itemCount = Number(formData.count);
+    // ตั้งเกณฑ์: พัสดุ <= 5 ชิ้น, เวชภัณฑ์ <= 20 ชิ้น ขึ้นสถานะใกล้หมด
+    const threshold = formData.category === 'พัสดุสำนักงาน' ? 5 : 20;
+
     const newItem = {
       id: Date.now(),
       category: formData.category,
       name: formData.item,
       lot: formData.lot || '-',
       expire: formData.expDate || '-',
-      count: Number(formData.count),
+      count: itemCount,
       unit: 'หน่วย',
-      status: Number(formData.count) <= 5 ? 'ใกล้หมด' : 'ปกติ',
+      status: itemCount <= threshold ? 'ใกล้หมด' : 'ปกติ',
       auditDate: formData.auditDate || '-'
     };
 
