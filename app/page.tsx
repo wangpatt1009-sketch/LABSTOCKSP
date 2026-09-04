@@ -26,8 +26,8 @@ const medicalSupplies = [
 ];
 
 const initialData = [
-  { id: 1, category: "พัสดุสำนักงาน", name: "กระดาษ A4", lot: "LOT-6901", expire: "-", count: 55, unit: "รีม", status: "ปกติ", auditDate: "2026-09-01" },
-  { id: 2, category: "เวชภัณฑ์ที่ไม่ใช่ยา", name: "DISPOSIBLE SYRINGE 3 C.C.", lot: "77744UN25", expire: "2026-11-06", count: 2, unit: "กล่อง", status: "ใกล้หมด", auditDate: "2026-09-01" },
+  { id: 1, category: "พัสดุสำนักงาน", name: "กระดาษ A4", lot: "LOT-6901", expire: "-", count: 55, unit: "รีม", status: "ปกติ", auditDate: new Date().toISOString().split('T')[0] },
+  { id: 2, category: "เวชภัณฑ์ที่ไม่ใช่ยา", name: "DISPOSIBLE SYRINGE 3 C.C.", lot: "77744UN25", expire: "2026-11-06", count: 2, unit: "กล่อง", status: "ใกล้หมด", auditDate: new Date().toISOString().split('T')[0] },
 ];
 
 export default function StockApp() {
@@ -39,13 +39,17 @@ export default function StockApp() {
     lot: "",
     count: "",
     expDate: "",
-    auditDate: "2026-09-01",
+    auditDate: "",
   });
 
   const [stockList, setStockList] = useState<any[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // ตั้งค่าวันปัจจุบันอัตโนมัติเมื่อโหลดหน้าเว็บ
   useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setFormData((prev) => ({ ...prev, auditDate: today }));
+
     const saved = localStorage.getItem('labstock_data');
     if (saved) {
       try {
@@ -77,6 +81,7 @@ export default function StockApp() {
 
     const itemCount = Number(formData.count);
     const threshold = formData.category === 'พัสดุสำนักงาน' ? 5 : 20;
+    const today = new Date().toISOString().split('T')[0];
 
     const newItem = {
       id: Date.now(),
@@ -87,7 +92,7 @@ export default function StockApp() {
       count: itemCount,
       unit: 'หน่วย',
       status: itemCount <= threshold ? 'ใกล้หมด' : 'ปกติ',
-      auditDate: formData.auditDate || '-'
+      auditDate: formData.auditDate || today
     };
 
     setStockList([newItem, ...stockList]);
@@ -97,7 +102,8 @@ export default function StockApp() {
       ...formData,
       lot: '',
       count: '',
-      expDate: ''
+      expDate: '',
+      auditDate: today
     });
   };
 
