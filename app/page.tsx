@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 
 const officeSupplies = [
   "กระดาษ A4", "กระดาษ A5", "กระดาษสี", "กาวใส", "คลิปดำ 2 ขา", "ดินสอ", "ดินสอเขียนสไลด์",
-  "ถุงขยะติดเชื้อ", "ถ่าน AA 2 ก้อน", "ถ่าน DTX", "ถุงซิปล็อค 10*15", "ถุงซิปล็อค 9*13 (ใหญ่)",
+  "ทิชชู่", "ถุงขยะติดเชื้อ", "ถ่าน AA 2 ก้อน", "ถ่าน DTX", "ถุงซิปล็อค 10*15", "ถุงซิปล็อค 9*13 (ใหญ่)",
   "ถุงซิปล็อค 9*13 (เล็ก)", "ถุงพลาสติกใส 6*9", "เทปแลคซีน", "เทปใส", "น้ำยาลบคำผิด",
   "ปากกาเคมี", "ปากกาไวท์บอร์ด", "ลวดเย็บกระดาษ No.10", "ลวดเย็บกระดาษ No.8",
   "ลวดเสียบกระดาษ", "หมุด", "สติ๊กเกอร์รับแลป", "สมุดรับแลป", "Cable tie"
@@ -45,7 +45,6 @@ export default function StockApp() {
   const [stockList, setStockList] = useState<any[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // ตั้งค่าวันปัจจุบันอัตโนมัติเมื่อโหลดหน้าเว็บ
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     setFormData((prev) => ({ ...prev, auditDate: today }));
