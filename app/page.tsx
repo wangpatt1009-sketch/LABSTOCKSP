@@ -22,7 +22,8 @@ const medicalSupplies = [
   "NORMAL SALINE 500 CC. (IRRIGATE)", "GLOVE NO.S (DISPOS.)", "Leg and cover Health Medic",
   "ALCOHOL BLISTER PACK (1แผงบรรจุ10ก้อน)", "ALCOHOL BLISTER PACK (1แผงบรรจุ8ก้อน)",
   "สำลีก้อน ขนาด 1.40 กรัม (บรรจุ 450 กรัม)", "VIRULEX 5 GM. (MONOPERSULFATE)",
-  "AROMATIC AMMONIA SPIRIT(30ML)", "BETADINE SOLUTION 15 ML.", "พลาสเตอร์ผ้ากาวเหนียว EEG"
+  "AROMATIC AMMONIA SPIRIT(30ML)", "BETADINE SOLUTION 15 ML.", "พลาสเตอร์ผ้ากาวเหนียว EEG",
+  "Stop Bleed"
 ];
 
 const initialData = [
