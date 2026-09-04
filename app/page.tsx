@@ -32,6 +32,7 @@ const initialData = [
 
 export default function StockApp() {
   const [activeTab, setActiveTab] = useState<'form' | 'table'>('form');
+  const [userMode, setUserMode] = useState<'admin' | 'addonly' | 'readonly'>('admin');
 
   const [formData, setFormData] = useState({
     category: "พัสดุสำนักงาน",
@@ -46,6 +47,20 @@ export default function StockApp() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
+    // เช็กโหมดจาก URL
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get('mode');
+      if (mode === 'readonly') {
+        setUserMode('readonly');
+        setActiveTab('table'); // ผู้ดูอย่างเดียว บังคับไปหน้าตาราง
+      } else if (mode === 'addonly') {
+        setUserMode('addonly');
+      } else {
+        setUserMode('admin');
+      }
+    }
+
     const today = new Date().toISOString().split('T')[0];
     setFormData((prev) => ({ ...prev, auditDate: today }));
 
@@ -73,6 +88,8 @@ export default function StockApp() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (userMode === 'readonly') return;
+
     if (!formData.count) {
       alert('กรุณากรอกจำนวนที่นับได้จริง');
       return;
@@ -107,6 +124,7 @@ export default function StockApp() {
   };
 
   const handleDelete = (id: number) => {
+    if (userMode !== 'admin') return;
     if (confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
       setStockList(stockList.filter((item) => item.id !== id));
     }
@@ -129,20 +147,26 @@ export default function StockApp() {
         <header className="rounded-2xl bg-violet-300 p-5 text-teal-950 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 border border-teal-300/50">
           <div>
             <h1 className="text-3xl font-extrabold tracking-wider text-white">LABSTOCK</h1>
-            <p className="text-xs opacity-80 mt-1">ระบบบริหารจัดการสต็อกพัสดุและเวชภัณฑ์</p>
+            <p className="text-xs opacity-80 mt-1">
+              ระบบบริหารจัดการสต็อกพัสดุและเวชภัณฑ์ 
+              {userMode === 'readonly' && <span className="bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold ml-2">👁️ ดูอย่างเดียว</span>}
+              {userMode === 'addonly' && <span className="bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full font-bold ml-2">✏️ บันทึกได้อย่างเดียว (ห้ามลบ)</span>}
+            </p>
           </div>
 
           <div className="flex bg-teal-300/50 p-1 rounded-xl border border-teal-400/30">
-            <button
-              onClick={() => setActiveTab('form')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
-                activeTab === 'form' 
-                  ? 'bg-white text-teal-900 shadow-sm' 
-                  : 'text-teal-900/70 hover:text-teal-950'
-              }`}
-            >
-              📝 บันทึก Audit Stock
-            </button>
+            {userMode !== 'readonly' && (
+              <button
+                onClick={() => setActiveTab('form')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
+                  activeTab === 'form' 
+                    ? 'bg-white text-teal-900 shadow-sm' 
+                    : 'text-teal-900/70 hover:text-teal-950'
+                }`}
+              >
+                📝 บันทึก Audit Stock
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('table')}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
@@ -157,7 +181,7 @@ export default function StockApp() {
         </header>
 
         {/* ================= หน้าที่ 1: ฟอร์มบันทึก AUDIT ================= */}
-        {activeTab === 'form' && (
+        {activeTab === 'form' && userMode !== 'readonly' && (
           <div className="max-w-2xl mx-auto rounded-2xl bg-white p-6 md:p-8 shadow-sm border border-slate-200">
             <h2 className="mb-6 text-xl font-bold text-pink-500 flex items-center gap-2 border-b pb-3 border-slate-100">
               <span>📝</span> บันทึกผล Audit Stock
@@ -289,7 +313,7 @@ export default function StockApp() {
                       <th className="p-4 text-center">คงเหลือ</th>
                       <th className="p-4">วันที่ Audit</th>
                       <th className="p-4">สถานะ</th>
-                      <th className="p-4 text-center">จัดการ</th>
+                      {userMode === 'admin' && <th className="p-4 text-center">จัดการ</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -310,14 +334,16 @@ export default function StockApp() {
                             {item.status}
                           </span>
                         </td>
-                        <td className="p-4 text-center">
-                          <button 
-                            onClick={() => handleDelete(item.id)}
-                            className="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 rounded bg-red-50 hover:bg-red-100 border border-red-200"
-                          >
-                            ลบ
-                          </button>
-                        </td>
+                        {userMode === 'admin' && (
+                          <td className="p-4 text-center">
+                            <button 
+                              onClick={() => handleDelete(item.id)}
+                              className="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 rounded bg-red-50 hover:bg-red-100 border border-red-200"
+                            >
+                              ลบ
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
