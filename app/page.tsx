@@ -96,7 +96,9 @@ export default function StockApp() {
     }
 
     const itemCount = Number(formData.count);
-    const threshold = formData.category === 'พัสดุสำนักงาน' ? 5 : 20;
+    
+    // ปรับเกณฑ์: ทั้ง พัสดุสำนักงาน และ เวชภัณฑ์ ถ้าจำนวน <= 5 ให้ขึ้น "ใกล้หมด"
+    const threshold = 5; 
     const today = new Date().toISOString().split('T')[0];
 
     const newItem = {
