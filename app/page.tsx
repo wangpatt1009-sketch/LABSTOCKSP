@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 
 const officeSupplies = [
   "กระดาษ A4", "กระดาษ A5", "กระดาษสี", "กาวใส", "คลิปดำ 2 ขา", "ดินสอ", "ดินสอเขียนสไลด์",
-  "ถ่าน AA 2 ก้อน", "ถ่าน DTX", "ถุงซิปล็อค 10*15", "ถุงซิปล็อค 9*13 (ใหญ่)",
+  "ถุงขยะติดเชื้อ", "ถ่าน AA 2 ก้อน", "ถ่าน DTX", "ถุงซิปล็อค 10*15", "ถุงซิปล็อค 9*13 (ใหญ่)",
   "ถุงซิปล็อค 9*13 (เล็ก)", "ถุงพลาสติกใส 6*9", "เทปแลคซีน", "เทปใส", "น้ำยาลบคำผิด",
   "ปากกาเคมี", "ปากกาไวท์บอร์ด", "ลวดเย็บกระดาษ No.10", "ลวดเย็บกระดาษ No.8",
   "ลวดเสียบกระดาษ", "หมุด", "สติ๊กเกอร์รับแลป", "Cable tie"
@@ -11,7 +11,7 @@ const officeSupplies = [
 
 const medicalSupplies = [
   "DISPOSIBLE SYRINGE 3 C.C.", "DISPOSIBLE SYRINGE 5 CC.", "DISPOSIBLE SYRINGE 10 CC.",
-  "Isolation Grown Lamonate 26 gms. (กาวน์กันน้ำ)","ก๊อซ OFF IV 2 ก้อน", "ก๊อซ OFF IV 15 ก้อน", "Ethyl Alcohol gel 70% ล้างมือ",
+  "Isolation Grown Lamonate 26 gms. (กาวน์กันน้ำ)", "Ethyl Alcohol gel 70% ล้างมือ",
   "Latex tube (สายรัดแขนเจาะเลือด)", "ACCU-Check guie (Strip DTX)", "Tensoplast (พลาสเตอร์ปิดแผล)",
   "Water less เช็ดโต๊ะ (75%Alcohol)", "เข็มเจาะปลายนิ้ว สำหรับตรวจหาระดับน้ำตาล",
   "Surgical Mask N95 แบบคล้องหู", "MASK DISPOSSEBLE (แมสเขียว)", "MICROPORE 3M 1\" X10 yds.",
@@ -76,7 +76,6 @@ export default function StockApp() {
     }
 
     const itemCount = Number(formData.count);
-    // ตั้งเกณฑ์: พัสดุ <= 5 ชิ้น, เวชภัณฑ์ <= 20 ชิ้น ขึ้นสถานะใกล้หมด
     const threshold = formData.category === 'พัสดุสำนักงาน' ? 5 : 20;
 
     const newItem = {
