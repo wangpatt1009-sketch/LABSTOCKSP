@@ -26,8 +26,8 @@ const medicalSupplies = [
 ];
 
 const initialData = [
-  { id: 1, category: "พัสดุสำนักงาน", name: "กระดาษ A4", lot: "LOT-6901", expire: "-", count: 55, unit: "รีม", status: "ปกติ", auditDate: new Date().toISOString().split('T')[0] },
-  { id: 2, category: "เวชภัณฑ์ที่ไม่ใช่ยา", name: "DISPOSIBLE SYRINGE 3 C.C.", lot: "77744UN25", expire: "2026-11-06", count: 2, unit: "กล่อง", status: "ใกล้หมด", auditDate: new Date().toISOString().split('T')[0] },
+  { id: 1, category: "พัสดุสำนักงาน", name: "กระดาษ A4", lot: "LOT-6901", expire: "-", count: 55, unit: "รีม", auditDate: new Date().toISOString().split('T')[0] },
+  { id: 2, category: "เวชภัณฑ์ที่ไม่ใช่ยา", name: "DISPOSIBLE SYRINGE 3 C.C.", lot: "77744UN25", expire: "2026-11-06", count: 2, unit: "กล่อง", auditDate: new Date().toISOString().split('T')[0] },
 ];
 
 export default function StockApp() {
@@ -46,14 +46,16 @@ export default function StockApp() {
   const [stockList, setStockList] = useState<any[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // State สำหรับการแก้ไขข้อมูล (Editing)
+  const [editingItem, setEditingItem] = useState<any>(null);
+
   useEffect(() => {
-    // เช็กโหมดจาก URL
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const mode = params.get('mode');
       if (mode === 'readonly') {
         setUserMode('readonly');
-        setActiveTab('table'); // ผู้ดูอย่างเดียว บังคับไปหน้าตาราง
+        setActiveTab('table');
       } else if (mode === 'addonly') {
         setUserMode('addonly');
       } else {
@@ -96,9 +98,6 @@ export default function StockApp() {
     }
 
     const itemCount = Number(formData.count);
-    
-    // ปรับเกณฑ์: ทั้ง พัสดุสำนักงาน และ เวชภัณฑ์ ถ้าจำนวน <= 5 ให้ขึ้น "ใกล้หมด"
-    const threshold = 5; 
     const today = new Date().toISOString().split('T')[0];
 
     const newItem = {
@@ -109,7 +108,6 @@ export default function StockApp() {
       expire: formData.expDate || '-',
       count: itemCount,
       unit: 'หน่วย',
-      status: itemCount <= threshold ? 'ใกล้หมด' : 'ปกติ',
       auditDate: formData.auditDate || today
     };
 
@@ -130,6 +128,24 @@ export default function StockApp() {
     if (confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
       setStockList(stockList.filter((item) => item.id !== id));
     }
+  };
+
+  // ฟังก์ชันเริ่มการแก้ไข
+  const handleEditClick = (item: any) => {
+    setEditingItem({ ...item });
+  };
+
+  // ฟังก์ชันบันทึกการแก้ไข
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+
+    setStockList(stockList.map((item) => 
+      item.id === editingItem.id ? editingItem : item
+    ));
+
+    setEditingItem(null);
+    alert('✅ แก้ไขข้อมูลเรียบร้อยแล้ว!');
   };
 
   const filteredData = stockList.filter((item) => {
@@ -319,38 +335,134 @@ export default function StockApp() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredData.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50 transition">
-                        <td className="p-4 text-slate-500">{item.category}</td>
-                        <td className="p-4 font-bold text-indigo-600">{item.name}</td>
-                        <td className="p-4 text-slate-600 font-mono font-semibold">{item.lot}</td>
-                        <td className="p-4 text-slate-500">{item.expire}</td>
-                        <td className="p-4 text-center font-bold text-indigo-600 text-sm">{item.count}</td>
-                        <td className="p-4 text-slate-500 font-mono">{item.auditDate || '-'}</td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-1 rounded-full font-semibold border ${
-                            item.status === 'ปกติ' 
-                              ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
-                              : 'bg-amber-100 text-amber-700 border-amber-200'
-                          }`}>
-                            {item.status}
-                          </span>
-                        </td>
-                        {userMode === 'admin' && (
-                          <td className="p-4 text-center">
-                            <button 
-                              onClick={() => handleDelete(item.id)}
-                              className="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 rounded bg-red-50 hover:bg-red-100 border border-red-200"
-                            >
-                              ลบ
-                            </button>
+                    {filteredData.map((item) => {
+                      const currentStatus = Number(item.count) <= 5 ? 'ใกล้หมด' : 'ปกติ';
+
+                      return (
+                        <tr key={item.id} className="hover:bg-slate-50 transition">
+                          <td className="p-4 text-slate-500">{item.category}</td>
+                          <td className="p-4 font-bold text-indigo-600">{item.name}</td>
+                          <td className="p-4 text-slate-600 font-mono font-semibold">{item.lot}</td>
+                          <td className="p-4 text-slate-500">{item.expire}</td>
+                          <td className="p-4 text-center font-bold text-indigo-600 text-sm">{item.count}</td>
+                          <td className="p-4 text-slate-500 font-mono">{item.auditDate || '-'}</td>
+                          <td className="p-4">
+                            <span className={`px-2.5 py-1 rounded-full font-semibold border ${
+                              currentStatus === 'ปกติ' 
+                                ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+                                : 'bg-amber-100 text-amber-700 border-amber-200'
+                            }`}>
+                              {currentStatus}
+                            </span>
                           </td>
-                        )}
-                      </tr>
-                    ))}
+                          {userMode === 'admin' && (
+                            <td className="p-4 text-center space-x-1">
+                              <button 
+                                onClick={() => handleEditClick(item)}
+                                className="text-amber-600 hover:text-amber-800 font-semibold text-xs px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200"
+                              >
+                                แก้ไข
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(item.id)}
+                                className="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 rounded bg-red-50 hover:bg-red-100 border border-red-200"
+                              >
+                                ลบ
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MODAL สำหรับแก้ไขข้อมูล (POPUP) ================= */}
+        {editingItem && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+              <h3 className="text-lg font-bold text-slate-800 border-b pb-2 flex justify-between items-center">
+                <span>✏️ แก้ไขข้อมูลพัสดุ</span>
+                <button 
+                  onClick={() => setEditingItem(null)}
+                  className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+                >
+                  ✕
+                </button>
+              </h3>
+
+              <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">รายการ</label>
+                  <input 
+                    type="text" 
+                    disabled 
+                    value={editingItem.name} 
+                    className="w-full bg-slate-100 border border-slate-200 rounded-lg p-2.5 font-bold text-slate-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">เลขล็อต (Lot Number)</label>
+                  <input 
+                    type="text" 
+                    value={editingItem.lot} 
+                    onChange={(e) => setEditingItem({ ...editingItem, lot: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg p-2.5 font-mono focus:ring-2 focus:ring-teal-300"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">จำนวนคงเหลือ</label>
+                  <input 
+                    type="number" 
+                    required
+                    value={editingItem.count} 
+                    onChange={(e) => setEditingItem({ ...editingItem, count: Number(e.target.value) })}
+                    className="w-full border border-slate-200 rounded-lg p-2.5 font-bold focus:ring-2 focus:ring-teal-300"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">วันหมดอายุ (EXP)</label>
+                  <input 
+                    type="text" 
+                    value={editingItem.expire} 
+                    onChange={(e) => setEditingItem({ ...editingItem, expire: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-teal-300"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-500 font-semibold mb-1">วันที่ Audit</label>
+                  <input 
+                    type="date" 
+                    value={editingItem.auditDate} 
+                    onChange={(e) => setEditingItem({ ...editingItem, auditDate: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-teal-300"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-3">
+                  <button 
+                    type="button" 
+                    onClick={() => setEditingItem(null)}
+                    className="flex-1 py-2.5 rounded-lg border border-slate-200 font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="flex-1 py-2.5 rounded-lg bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm"
+                  >
+                    บันทึกการแก้ไข
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
