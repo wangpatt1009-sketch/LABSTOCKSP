@@ -12,10 +12,22 @@ export interface StockItem {
   count: number;
   unit: string;
   minStock: number;
-  auditDate: string;      // วันที่ Audit ล่าสุด (YYYY-MM-DD)
-  nextAuditDate: string;  // วันที่ต้อง Audit ครั้งถัดไป (คำนวณตาม cycle)
+  auditDate: string;      // YYYY-MM-DD
+  nextAuditDate: string;  // YYYY-MM-DD
   auditCycleDays: number; // 7 วันสำหรับเวชภัณฑ์, 14 วันสำหรับพัสดุ
   auditor: string;
+}
+
+export interface GroupedStockItem {
+  name: string;
+  category: 'พัสดุสำนักงาน' | 'เวชภัณฑ์ที่ไม่ใช่ยา';
+  unit: string;
+  minStock: number;
+  totalCount: number;
+  lots: StockItem[];
+  earliestNextAudit: string;
+  latestAuditDate: string;
+  auditCycleDays: number;
 }
 
 export interface AuditLog {
@@ -72,6 +84,34 @@ const initialStockData: StockItem[] = [
   {
     id: 1,
     category: "เวชภัณฑ์ที่ไม่ใช่ยา",
+    name: "DISPOSIBLE NEEDLE NO.21x1\"",
+    lot: "25H08",
+    expire: "2030-07-31",
+    count: 2,
+    unit: "กล่อง",
+    minStock: 5,
+    auditDate: "2026-10-28",
+    nextAuditDate: addDays("2026-10-28", 7),
+    auditCycleDays: 7,
+    auditor: "Sau Patt"
+  },
+  {
+    id: 2,
+    category: "เวชภัณฑ์ที่ไม่ใช่ยา",
+    name: "DISPOSIBLE NEEDLE NO.21x1\"",
+    lot: "25D04",
+    expire: "2030-03-31",
+    count: 1,
+    unit: "กล่อง",
+    minStock: 5,
+    auditDate: "2026-10-28",
+    nextAuditDate: addDays("2026-10-28", 7),
+    auditCycleDays: 7,
+    auditor: "Sau Patt"
+  },
+  {
+    id: 3,
+    category: "เวชภัณฑ์ที่ไม่ใช่ยา",
     name: "Stop Bleed",
     lot: "285/69",
     expire: "2027-03-21",
@@ -84,7 +124,7 @@ const initialStockData: StockItem[] = [
     auditor: "เจ้าหน้าที่ A"
   },
   {
-    id: 2,
+    id: 4,
     category: "พัสดุสำนักงาน",
     name: "Safety Box",
     lot: "-",
@@ -96,21 +136,7 @@ const initialStockData: StockItem[] = [
     nextAuditDate: addDays("2026-09-10", 14),
     auditCycleDays: 14,
     auditor: "เจ้าหน้าที่ B"
-  },
-  {
-    id: 3,
-    category: "เวชภัณฑ์ที่ไม่ใช่ยา",
-    name: "ACCU-Check guie (Strip DTX)",
-    lot: "105872",
-    expire: "2027-06-18",
-    count: 2,
-    unit: "กล่อง",
-    minStock: 5,
-    auditDate: "2026-10-25",
-    nextAuditDate: addDays("2026-10-25", 7),
-    auditCycleDays: 7,
-    auditor: "เจ้าหน้าที่ A"
-  },
+  }
 ];
 
 const initialAuditHistory: AuditLog[] = [
@@ -118,27 +144,14 @@ const initialAuditHistory: AuditLog[] = [
     id: 101,
     itemId: 1,
     category: "เวชภัณฑ์ที่ไม่ใช่ยา",
-    name: "Stop Bleed",
-    lot: "285/69",
-    expire: "2027-03-21",
-    count: 5,
+    name: "DISPOSIBLE NEEDLE NO.21x1\"",
+    lot: "25H08",
+    expire: "2030-07-31",
+    count: 2,
     unit: "กล่อง",
-    auditDate: "2026-09-21",
-    auditor: "เจ้าหน้าที่ A",
+    auditDate: "2026-10-28",
+    auditor: "Sau Patt",
     note: "นับสต็อกประจำสัปดาห์"
-  },
-  {
-    id: 102,
-    itemId: 2,
-    category: "พัสดุสำนักงาน",
-    name: "Safety Box",
-    lot: "-",
-    expire: "-",
-    count: 4,
-    unit: "กล่อง",
-    auditDate: "2026-09-10",
-    auditor: "เจ้าหน้าที่ B",
-    note: "นับสต็อกรอบ 2 สัปดาห์"
   }
 ];
 
@@ -151,6 +164,9 @@ export default function StockApp() {
   const [auditHistory, setAuditHistory] = useState<AuditLog[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  // Expanded Group Rows
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
   // Form State
   const [formData, setFormData] = useState({
     category: "พัสดุสำนักงาน" as 'พัสดุสำนักงาน' | 'เวชภัณฑ์ที่ไม่ใช่ยา',
@@ -158,7 +174,7 @@ export default function StockApp() {
     customName: '',
     lot: '',
     count: '',
-    unit: 'ชิ้น',
+    unit: 'กล่อง',
     minStock: '5',
     expDate: '',
     auditDate: todayStr,
@@ -174,12 +190,12 @@ export default function StockApp() {
   // Filter States - History
   const [historyCategory, setHistoryCategory] = useState('ทุกประเภท');
   const [historySearch, setHistorySearch] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(''); // YYYY-MM
+  const [selectedMonth, setSelectedMonth] = useState('');
 
   // Edit Modal State
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
 
-  // Initial Data Load
+  // Load Data
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -195,8 +211,8 @@ export default function StockApp() {
       }
     }
 
-    const savedStock = localStorage.getItem('labstock_data_v2');
-    const savedHistory = localStorage.getItem('labstock_history_v2');
+    const savedStock = localStorage.getItem('labstock_data_v3');
+    const savedHistory = localStorage.getItem('labstock_history_v3');
 
     if (savedStock) {
       try { setStockList(JSON.parse(savedStock)); } catch { setStockList(initialStockData); }
@@ -213,15 +229,20 @@ export default function StockApp() {
     setIsLoaded(true);
   }, []);
 
-  // Sync to LocalStorage
+  // Save Data
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem('labstock_data_v2', JSON.stringify(stockList));
-      localStorage.setItem('labstock_history_v2', JSON.stringify(auditHistory));
+      localStorage.setItem('labstock_data_v3', JSON.stringify(stockList));
+      localStorage.setItem('labstock_history_v3', JSON.stringify(auditHistory));
     }
   }, [stockList, auditHistory, isLoaded]);
 
-  // Compute Audit Status (Overdue / Due Today / OK)
+  // Toggle Row Group Details
+  const toggleGroupExpand = (groupName: string) => {
+    setExpandedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
+  };
+
+  // Compute Status
   const getAuditStatus = (nextAuditDate: string) => {
     if (!nextAuditDate) return { label: 'ปกติ', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', code: 'OK' };
     
@@ -239,7 +260,7 @@ export default function StockApp() {
     return { label: 'ปกติ', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', code: 'OK' };
   };
 
-  // Submit Audit / New Stock
+  // Submit Audit Form
   const handleSubmitAudit = (e: React.FormEvent) => {
     e.preventDefault();
     if (userMode === 'readonly') return;
@@ -260,11 +281,12 @@ export default function StockApp() {
     const nextAudit = addDays(auditDateInput, cycleDays);
     const countNum = Number(formData.count);
     const minStockNum = Number(formData.minStock) || 0;
+    const lotInput = formData.lot.trim() || '-';
 
-    // Check existing item by Name + Lot
+    // Check existing exact Item + Lot
     const existingIndex = stockList.findIndex(
       (item) => item.name.trim().toLowerCase() === itemName.trim().toLowerCase() && 
-                item.lot.trim().toLowerCase() === (formData.lot.trim() || '-').toLowerCase()
+                item.lot.trim().toLowerCase() === lotInput.toLowerCase()
     );
 
     let updatedList = [...stockList];
@@ -290,7 +312,7 @@ export default function StockApp() {
         id: targetItemId,
         category: formData.category,
         name: itemName.trim(),
-        lot: formData.lot.trim() || '-',
+        lot: lotInput,
         expire: formData.expDate || '-',
         count: countNum,
         unit: formData.unit || 'หน่วย',
@@ -303,13 +325,13 @@ export default function StockApp() {
       updatedList = [newItem, ...updatedList];
     }
 
-    // Record History Log (Snapshots)
+    // Record History Log
     const newLog: AuditLog = {
       id: Date.now(),
       itemId: targetItemId,
       category: formData.category,
       name: itemName.trim(),
-      lot: formData.lot.trim() || '-',
+      lot: lotInput,
       expire: formData.expDate || '-',
       count: countNum,
       unit: formData.unit || 'หน่วย',
@@ -339,12 +361,12 @@ export default function StockApp() {
   // Delete Stock Item
   const handleDelete = (id: number) => {
     if (userMode !== 'admin') return;
-    if (confirm('คุณต้องการลบรายการนี้ออกจากระบบใช่หรือไม่?')) {
+    if (confirm('คุณต้องการลบรายการ Lot นี้ใช่หรือไม่?')) {
       setStockList(stockList.filter((item) => item.id !== id));
     }
   };
 
-  // Quick Audit Action directly from table
+  // Quick Audit
   const handleQuickAudit = (item: StockItem) => {
     const newCount = prompt(`ระบุจำนวนคงเหลือใหม่สำหรับ "${item.name}" (Lot: ${item.lot}):`, item.count.toString());
     if (newCount !== null && newCount.trim() !== '' && !isNaN(Number(newCount))) {
@@ -429,19 +451,60 @@ export default function StockApp() {
     document.body.removeChild(link);
   };
 
-  // Filtering Table Data
-  const filteredData = stockList.filter((item) => {
-    const matchesCategory = selectedCategory === 'ทุกประเภท' || item.category === selectedCategory;
-    const cleanSearch = searchTerm.trim().toLowerCase();
-    const matchesSearch = item.name.toLowerCase().includes(cleanSearch) || 
-                          item.lot.toLowerCase().includes(cleanSearch);
-    
+  // Group Stock Items by Name
+  const groupedData: GroupedStockItem[] = React.useMemo(() => {
+    const map = new Map<string, StockItem[]>();
+
+    stockList.forEach((item) => {
+      const cleanCategory = selectedCategory === 'ทุกประเภท' || item.category === selectedCategory;
+      const cleanSearch = searchTerm.trim().toLowerCase();
+      const matchesSearch = item.name.toLowerCase().includes(cleanSearch) || item.lot.toLowerCase().includes(cleanSearch);
+
+      if (cleanCategory && matchesSearch) {
+        const key = item.name.trim();
+        if (!map.has(key)) {
+          map.set(key, []);
+        }
+        map.get(key)!.push(item);
+      }
+    });
+
+    const result: GroupedStockItem[] = [];
+
+    map.forEach((items, name) => {
+      const first = items[0];
+      const totalCount = items.reduce((sum, i) => sum + i.count, 0);
+      
+      // Sort nextAuditDate ascending to find earliest due
+      const sortedByNextAudit = [...items].sort((a, b) => a.nextAuditDate.localeCompare(b.nextAuditDate));
+      const earliestNextAudit = sortedByNextAudit[0]?.nextAuditDate || todayStr;
+
+      // Sort auditDate descending for latest audit
+      const sortedByAuditDate = [...items].sort((a, b) => b.auditDate.localeCompare(a.auditDate));
+      const latestAuditDate = sortedByAuditDate[0]?.auditDate || todayStr;
+
+      result.push({
+        name,
+        category: first.category,
+        unit: first.unit,
+        minStock: first.minStock,
+        totalCount,
+        lots: items,
+        earliestNextAudit,
+        latestAuditDate,
+        auditCycleDays: first.auditCycleDays
+      });
+    });
+
     if (auditDueFilter) {
-      const status = getAuditStatus(item.nextAuditDate).code;
-      return matchesCategory && matchesSearch && (status === 'OVERDUE' || status === 'DUE_TODAY');
+      return result.filter(g => {
+        const status = getAuditStatus(g.earliestNextAudit).code;
+        return status === 'OVERDUE' || status === 'DUE_TODAY';
+      });
     }
-    return matchesCategory && matchesSearch;
-  });
+
+    return result;
+  }, [stockList, selectedCategory, searchTerm, auditDueFilter]);
 
   // Filtering History Log Data
   const filteredHistory = auditHistory.filter((log) => {
@@ -464,7 +527,7 @@ export default function StockApp() {
             <div className="flex items-center gap-2">
               <h1 className="text-3xl font-black tracking-wider">LABSTOCK</h1>
               <span className="text-[10px] bg-white/20 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/30 font-bold uppercase">
-                v2.0 Enhanced Audit
+                v2.5 Grouped Lot View
               </span>
             </div>
             <p className="text-xs text-violet-100/90 mt-1 flex items-center gap-2 flex-wrap">
@@ -517,7 +580,7 @@ export default function StockApp() {
           </div>
         </header>
 
-        {/* ================= หน้าที่ 1: ตารางสต็อกสินค้าคงเหลือ ================= */}
+        {/* ================= หน้าที่ 1: ตารางสต็อกสินค้าคงเหลือ (GROUPED LOT VIEW) ================= */}
         {activeTab === 'table' && (
           <div className="space-y-4">
             
@@ -564,99 +627,162 @@ export default function StockApp() {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-500 border-b border-slate-200 font-bold uppercase tracking-wider">
+                      <th className="p-4 w-12 text-center">#</th>
                       <th className="p-4">ประเภท</th>
-                      <th className="p-4">รายการ</th>
-                      <th className="p-4">Lot Number</th>
-                      <th className="p-4">วันหมดอายุ</th>
-                      <th className="p-4 text-center">คงเหลือ (หน่วย)</th>
-                      <th className="p-4 text-center">มินิมั่ม (Min)</th>
-                      <th className="p-4">Audit ล่าสุด</th>
-                      <th className="p-4">กำหนด Audit ถัดไป</th>
-                      <th className="p-4 text-center">สถานะการ Audit</th>
-                      {userMode === 'admin' && <th className="p-4 text-center">จัดการ</th>}
+                      <th className="p-4">รายการ (รวม Lot)</th>
+                      <th className="p-4 text-center">จำนวน Lot</th>
+                      <th className="p-4 text-center">คงเหลือรวม</th>
+                      <th className="p-4 text-center">มินิมั่ม (MIN)</th>
+                      <th className="p-4">AUDIT ล่าสุด</th>
+                      <th className="p-4">กำหนด AUDIT ถัดไป</th>
+                      <th className="p-4 text-center">สถานะการ AUDIT</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredData.length > 0 ? (
-                      filteredData.map((item) => {
-                        const auditStatus = getAuditStatus(item.nextAuditDate);
-                        const isLowStock = item.count <= item.minStock;
+                    {groupedData.length > 0 ? (
+                      groupedData.map((group, idx) => {
+                        const auditStatus = getAuditStatus(group.earliestNextAudit);
+                        const isLowStock = group.totalCount <= group.minStock;
+                        const isExpanded = !!expandedGroups[group.name];
 
                         return (
-                          <tr key={item.id} className="hover:bg-slate-50/80 transition group">
-                            <td className="p-4">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                item.category === 'พัสดุสำนักงาน' 
-                                  ? 'bg-blue-50 text-blue-700 border border-blue-200' 
-                                  : 'bg-purple-50 text-purple-700 border border-purple-200'
-                              }`}>
-                                {item.category}
-                              </span>
-                            </td>
-                            <td className="p-4">
-                              <div className="font-bold text-slate-800 text-sm">{item.name}</div>
-                              {isLowStock && (
-                                <span className="inline-block mt-1 text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium border border-amber-200">
-                                  ⚠️ สต็อกใกล้หมด (ต่ำกว่า Min)
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-4 font-mono font-semibold text-slate-600">{item.lot}</td>
-                            <td className="p-4 text-slate-500 font-mono">{item.expire}</td>
-                            <td className="p-4 text-center">
-                              <span className={`font-black text-sm px-2.5 py-1 rounded-lg ${
-                                isLowStock ? 'text-amber-700 bg-amber-50' : 'text-indigo-600 bg-indigo-50'
-                              }`}>
-                                {item.count} <span className="text-xs font-normal text-slate-500">{item.unit}</span>
-                              </span>
-                            </td>
-                            <td className="p-4 text-center text-slate-400 font-medium">
-                              {item.minStock} {item.unit}
-                            </td>
-                            <td className="p-4">
-                              <div className="font-mono text-slate-600">{item.auditDate}</div>
-                              <div className="text-[10px] text-slate-400">โดย: {item.auditor}</div>
-                            </td>
-                            <td className="p-4 font-mono font-semibold text-slate-700">
-                              {item.nextAuditDate}
-                              <div className="text-[10px] text-slate-400 font-normal">
-                                รอบทุก {item.auditCycleDays} วัน
-                              </div>
-                            </td>
-                            <td className="p-4 text-center">
-                              <span className={`px-2.5 py-1 rounded-full text-[11px] border inline-block ${auditStatus.color}`}>
-                                {auditStatus.label}
-                              </span>
-                            </td>
-                            {userMode === 'admin' && (
-                              <td className="p-4 text-center space-x-1 whitespace-nowrap">
-                                <button 
-                                  onClick={() => handleQuickAudit(item)}
-                                  title="อัปเดตการตรวจนับด่วน"
-                                  className="text-indigo-600 hover:text-indigo-900 font-bold text-xs px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition"
-                                >
-                                  ⚡ Audit
-                                </button>
-                                <button 
-                                  onClick={() => setEditingItem(item)}
-                                  className="text-amber-600 hover:text-amber-800 font-semibold text-xs px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 transition"
-                                >
-                                  แก้ไข
-                                </button>
-                                <button 
-                                  onClick={() => handleDelete(item.id)}
-                                  className="text-rose-500 hover:text-rose-700 font-semibold text-xs px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 transition"
-                                >
-                                  ลบ
+                          <React.Fragment key={idx}>
+                            {/* Group Header Row */}
+                            <tr 
+                              onClick={() => toggleGroupExpand(group.name)}
+                              className={`hover:bg-slate-50/90 transition cursor-pointer select-none ${
+                                isExpanded ? 'bg-violet-50/40' : ''
+                              }`}
+                            >
+                              <td className="p-4 text-center">
+                                <button className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-[10px]">
+                                  {isExpanded ? '▼' : '▶'}
                                 </button>
                               </td>
+                              <td className="p-4">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  group.category === 'พัสดุสำนักงาน' 
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                                    : 'bg-purple-50 text-purple-700 border border-purple-200'
+                                }`}>
+                                  {group.category}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <div className="font-bold text-indigo-900 text-sm flex items-center gap-2">
+                                  <span>{group.name}</span>
+                                </div>
+                                {isLowStock && (
+                                  <span className="inline-block mt-1 text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded font-medium border border-amber-200">
+                                    ⚠️ สต็อกใกล้หมด (ต่ำกว่า Min)
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-4 text-center font-bold text-slate-600">
+                                <span className="bg-slate-100 px-2.5 py-1 rounded-full text-slate-700 font-mono">
+                                  {group.lots.length} ล็อต
+                                </span>
+                              </td>
+                              <td className="p-4 text-center">
+                                <span className={`font-black text-sm px-2.5 py-1 rounded-lg ${
+                                  isLowStock ? 'text-amber-700 bg-amber-50' : 'text-indigo-600 bg-indigo-50'
+                                }`}>
+                                  {group.totalCount} <span className="text-xs font-normal text-slate-500">{group.unit}</span>
+                                </span>
+                              </td>
+                              <td className="p-4 text-center text-slate-400 font-medium">
+                                {group.minStock} {group.unit}
+                              </td>
+                              <td className="p-4 font-mono text-slate-600">
+                                {group.latestAuditDate}
+                              </td>
+                              <td className="p-4 font-mono font-semibold text-slate-700">
+                                {group.earliestNextAudit}
+                                <div className="text-[10px] text-slate-400 font-normal">
+                                  รอบทุก {group.auditCycleDays} วัน
+                                </div>
+                              </td>
+                              <td className="p-4 text-center">
+                                <span className={`px-2.5 py-1 rounded-full text-[11px] border inline-block ${auditStatus.color}`}>
+                                  {auditStatus.label}
+                                </span>
+                              </td>
+                            </tr>
+
+                            {/* Sub-table: Expandable Lots Details */}
+                            {isExpanded && (
+                              <tr className="bg-slate-50/70 border-b border-violet-100">
+                                <td colSpan={9} className="p-3 pl-12">
+                                  <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-inner space-y-2">
+                                    <div className="text-xs font-bold text-violet-900 flex justify-between items-center border-b pb-2">
+                                      <span>📦 รายละเอียด Lot ย่อยของ "{group.name}"</span>
+                                      <span className="text-[10px] text-slate-400 font-normal">คลิก Quick Audit เพื่ออัปเดตยอดแยกตาม Lot ได้ทันที</span>
+                                    </div>
+                                    <table className="w-full text-left text-xs">
+                                      <thead>
+                                        <tr className="text-slate-400 border-b border-slate-100 font-semibold">
+                                          <th className="py-2 px-3">Lot Number</th>
+                                          <th className="py-2 px-3">วันหมดอายุ</th>
+                                          <th className="py-2 px-3 text-center">คงเหลือ</th>
+                                          <th className="py-2 px-3">Audit ล่าสุด</th>
+                                          <th className="py-2 px-3">ผู้ตรวจนับ</th>
+                                          {userMode === 'admin' && <th className="py-2 px-3 text-center">จัดการ</th>}
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-slate-100">
+                                        {group.lots.map((lotItem) => (
+                                          <tr key={lotItem.id} className="hover:bg-slate-50">
+                                            <td className="py-2.5 px-3 font-mono font-bold text-slate-700">
+                                              {lotItem.lot}
+                                            </td>
+                                            <td className="py-2.5 px-3 font-mono text-slate-500">
+                                              {lotItem.expire}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-center font-bold text-indigo-600">
+                                              {lotItem.count} {lotItem.unit}
+                                            </td>
+                                            <td className="py-2.5 px-3 font-mono text-slate-500">
+                                              {lotItem.auditDate}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-slate-600">
+                                              {lotItem.auditor}
+                                            </td>
+                                            {userMode === 'admin' && (
+                                              <td className="py-2.5 px-3 text-center space-x-1 whitespace-nowrap">
+                                                <button 
+                                                  onClick={() => handleQuickAudit(lotItem)}
+                                                  className="text-indigo-600 hover:text-indigo-900 font-bold text-[11px] px-2 py-0.5 rounded bg-indigo-50 hover:bg-indigo-100 border border-indigo-200"
+                                                >
+                                                  ⚡ Audit
+                                                </button>
+                                                <button 
+                                                  onClick={() => setEditingItem(lotItem)}
+                                                  className="text-amber-600 hover:text-amber-800 font-semibold text-[11px] px-2 py-0.5 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200"
+                                                >
+                                                  แก้ไข
+                                                </button>
+                                                <button 
+                                                  onClick={() => handleDelete(lotItem.id)}
+                                                  className="text-rose-500 hover:text-rose-700 font-semibold text-[11px] px-2 py-0.5 rounded bg-rose-50 hover:bg-rose-100 border border-rose-200"
+                                                >
+                                                  ลบ
+                                                </button>
+                                              </td>
+                                            )}
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </td>
+                              </tr>
                             )}
-                          </tr>
+                          </React.Fragment>
                         );
                       })
                     ) : (
                       <tr>
-                        <td colSpan={userMode === 'admin' ? 10 : 9} className="p-12 text-center text-slate-400">
+                        <td colSpan={9} className="p-12 text-center text-slate-400">
                           <div className="text-2xl mb-1">🔍</div>
                           ไม่พบรายการอุปกรณ์หรือพัสดุที่ตรงกับเงื่อนไข
                         </td>
@@ -738,7 +864,7 @@ export default function StockApp() {
                   <label className="block text-xs font-bold text-slate-600 mb-1.5">เลขล็อต (Lot Number)</label>
                   <input 
                     type="text" 
-                    placeholder="เช่น LOT-6901 / 77744UN25" 
+                    placeholder="เช่น 25H08 / 25D04" 
                     className="w-full rounded-xl border border-slate-200 p-3 text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-400 font-mono"
                     value={formData.lot}
                     onChange={(e) => setFormData({...formData, lot: e.target.value})}
@@ -812,7 +938,7 @@ export default function StockApp() {
                   <label className="block text-xs font-bold text-slate-600 mb-1.5">ชื่อผู้ตรวจนับ / Auditor</label>
                   <input 
                     type="text" 
-                    placeholder="เช่น คุณกานต์ / นักเทคนิคการแพทย์ B" 
+                    placeholder="เช่น Sau Patt / คุณกานต์" 
                     className="w-full rounded-xl border border-slate-200 p-3 text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
                     value={formData.auditor}
                     onChange={(e) => setFormData({...formData, auditor: e.target.value})}
@@ -823,7 +949,7 @@ export default function StockApp() {
                   <label className="block text-xs font-bold text-slate-600 mb-1.5">หมายเหตุ</label>
                   <input 
                     type="text" 
-                    placeholder="เช่น ตรวจนับประจำสัปดาห์, สินค้าชำรุด 1 ชิ้น" 
+                    placeholder="เช่น ตรวจนับประจำสัปดาห์" 
                     className="w-full rounded-xl border border-slate-200 p-3 text-xs bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
                     value={formData.note}
                     onChange={(e) => setFormData({...formData, note: e.target.value})}
