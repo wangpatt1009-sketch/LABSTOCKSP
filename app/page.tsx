@@ -211,8 +211,8 @@ export default function StockApp() {
       }
     }
 
-    const savedStock = localStorage.getItem('labstock_data_v4');
-    const savedHistory = localStorage.getItem('labstock_history_v4');
+    const savedStock = localStorage.getItem('labstock_data_v5');
+    const savedHistory = localStorage.getItem('labstock_history_v5');
 
     if (savedStock) {
       try { setStockList(JSON.parse(savedStock)); } catch { setStockList(initialStockData); }
@@ -232,8 +232,8 @@ export default function StockApp() {
   // Save Data
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem('labstock_data_v4', JSON.stringify(stockList));
-      localStorage.setItem('labstock_history_v4', JSON.stringify(auditHistory));
+      localStorage.setItem('labstock_data_v5', JSON.stringify(stockList));
+      localStorage.setItem('labstock_history_v5', JSON.stringify(auditHistory));
     }
   }, [stockList, auditHistory, isLoaded]);
 
