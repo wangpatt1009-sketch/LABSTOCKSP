@@ -239,7 +239,10 @@ export default function StockApp() {
 
   // Toggle Row Group Details
   const toggleGroupExpand = (groupKey: string) => {
-    setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupKey]: prev[groupKey] !== undefined ? !prev[groupKey] : false
+    }));
   };
 
   // Compute Status
@@ -643,7 +646,9 @@ export default function StockApp() {
                         const auditStatus = getAuditStatus(group.earliestNextAudit);
                         const isLowStock = group.totalCount <= group.minStock;
                         const groupKey = group.name.trim().toLowerCase();
-                        const isExpanded = !!expandedGroups[groupKey];
+                        
+                        // ปรับตรงนี้: ถ้ายังไม่เคยถูกคลิกซ่อน จะให้เป็น true (แสดงตลอดเวลา)
+                        const isExpanded = expandedGroups[groupKey] !== undefined ? expandedGroups[groupKey] : true;
 
                         return (
                           <React.Fragment key={idx}>
