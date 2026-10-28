@@ -1,5 +1,20 @@
 'use client';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+
+// TypeScript Interfaces
+export interface StockItem {
+  id: number;
+  category: string;
+  name: string;
+  lot: string;
+  expire: string;
+  count: number;
+  unit: string;
+  auditDate: string;
+}
+
+type UserMode = 'admin' | 'addonly' | 'readonly';
+type ActiveTab = 'form' | 'table';
 
 const officeSupplies = [
   "กระดาษ A4", "กระดาษ A5", "กระดาษสี", "กาวใส", "คลิปดำ 2 ขา", "ดินสอ", "ดินสอเขียนสไลด์",
@@ -23,17 +38,17 @@ const medicalSupplies = [
   "ALCOHOL BLISTER PACK (1แผงบรรจุ10ก้อน)", "ALCOHOL BLISTER PACK (1แผงบรรจุ8ก้อน)",
   "สำลีก้อน ขนาด 1.40 กรัม (บรรจุ 450 กรัม)", "VIRULEX 5 GM. (MONOPERSULFATE)",
   "AROMATIC AMMONIA SPIRIT(30ML)", "BETADINE SOLUTION 15 ML.", "พลาสเตอร์ผ้ากาวเหนียว EEG",
-  "Stop Bleed"
+  "Stop Bleed", "ขวด Hemoculture", "กระป๋อง Sterile", "Pus Culture", "Stool Culture"
 ];
 
-const initialData = [
+const initialData: StockItem[] = [
   { id: 1, category: "พัสดุสำนักงาน", name: "กระดาษ A4", lot: "LOT-6901", expire: "-", count: 55, unit: "รีม", auditDate: new Date().toISOString().split('T')[0] },
   { id: 2, category: "เวชภัณฑ์ที่ไม่ใช่ยา", name: "DISPOSIBLE SYRINGE 3 C.C.", lot: "77744UN25", expire: "2026-11-06", count: 2, unit: "กล่อง", auditDate: new Date().toISOString().split('T')[0] },
 ];
 
 export default function StockApp() {
-  const [activeTab, setActiveTab] = useState<'form' | 'table'>('form');
-  const [userMode, setUserMode] = useState<'admin' | 'addonly' | 'readonly'>('admin');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('form');
+  const [userMode, setUserMode] = useState<UserMode>('admin');
 
   const [formData, setFormData] = useState({
     category: "พัสดุสำนักงาน",
@@ -44,16 +59,18 @@ export default function StockApp() {
     auditDate: "",
   });
 
-  const [stockList, setStockList] = useState<any[]>([]);
+  const [stockList, setStockList] = useState<StockItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [editingItem, setEditingItem] = useState<StockItem | null>(null);
 
-  // State สำหรับการแก้ไขข้อมูล (Editing)
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ทุกประเภท');
 
+  // Load URL Query parameters & localStorage
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const mode = params.get('mode');
+      const mode = params.get('mode') as UserMode;
       if (mode === 'readonly') {
         setUserMode('readonly');
         setActiveTab('table');
@@ -80,32 +97,30 @@ export default function StockApp() {
     setIsLoaded(true);
   }, []);
 
+  // Sync state back to localStorage
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem('labstock_data', JSON.stringify(stockList));
     }
   }, [stockList, isLoaded]);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('ทุกประเภท');
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (userMode === 'readonly') return;
 
-    if (!formData.count) {
-      alert('กรุณากรอกจำนวนที่นับได้จริง');
+    if (!formData.count || Number(formData.count) < 0) {
+      alert('กรุณากรอกจำนวนให้ถูกต้อง');
       return;
     }
 
     const itemCount = Number(formData.count);
     const today = new Date().toISOString().split('T')[0];
 
-    const newItem = {
+    const newItem: StockItem = {
       id: Date.now(),
       category: formData.category,
       name: formData.item,
-      lot: formData.lot || '-',
+      lot: formData.lot.trim() || '-',
       expire: formData.expDate || '-',
       count: itemCount,
       unit: 'หน่วย',
@@ -131,12 +146,10 @@ export default function StockApp() {
     }
   };
 
-  // ฟังก์ชันเริ่มการแก้ไข
-  const handleEditClick = (item: any) => {
+  const handleEditClick = (item: StockItem) => {
     setEditingItem({ ...item });
   };
 
-  // ฟังก์ชันบันทึกการแก้ไข
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
@@ -151,8 +164,9 @@ export default function StockApp() {
 
   const filteredData = stockList.filter((item) => {
     const matchesCategory = selectedCategory === 'ทุกประเภท' || item.category === selectedCategory;
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          item.lot.toLowerCase().includes(searchTerm.toLowerCase());
+    const cleanSearch = searchTerm.trim().toLowerCase();
+    const matchesSearch = item.name.toLowerCase().includes(cleanSearch) || 
+                          item.lot.toLowerCase().includes(cleanSearch);
     return matchesCategory && matchesSearch;
   });
 
@@ -163,24 +177,24 @@ export default function StockApp() {
       <div className="max-w-6xl mx-auto space-y-5">
         
         {/* Navigation & Header Bar */}
-        <header className="rounded-2xl bg-violet-300 p-5 text-teal-950 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4 border border-teal-300/50">
+        <header className="rounded-2xl bg-violet-600 p-5 text-white shadow-md flex flex-col md:flex-row justify-between items-center gap-4 border border-violet-500/50">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-wider text-white">LABSTOCK</h1>
-            <p className="text-xs opacity-80 mt-1">
+            <h1 className="text-3xl font-extrabold tracking-wider">LABSTOCK</h1>
+            <p className="text-xs opacity-90 mt-1 flex items-center gap-1">
               ระบบบริหารจัดการสต็อกพัสดุและเวชภัณฑ์ 
-              {userMode === 'readonly' && <span className="bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold ml-2">👁️ ดูอย่างเดียว</span>}
-              {userMode === 'addonly' && <span className="bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full font-bold ml-2">✏️ บันทึกได้อย่างเดียว (ห้ามลบ)</span>}
+              {userMode === 'readonly' && <span className="bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-full font-bold text-[10px]">👁️ ดูอย่างเดียว</span>}
+              {userMode === 'addonly' && <span className="bg-blue-200 text-blue-900 px-2.5 py-0.5 rounded-full font-bold text-[10px]">✏️ บันทึกได้อย่างเดียว</span>}
             </p>
           </div>
 
-          <div className="flex bg-teal-300/50 p-1 rounded-xl border border-teal-400/30">
+          <div className="flex bg-violet-700/60 p-1.5 rounded-xl border border-violet-400/30">
             {userMode !== 'readonly' && (
               <button
                 onClick={() => setActiveTab('form')}
                 className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
                   activeTab === 'form' 
-                    ? 'bg-white text-teal-900 shadow-sm' 
-                    : 'text-teal-900/70 hover:text-teal-950'
+                    ? 'bg-white text-violet-900 shadow-sm' 
+                    : 'text-violet-100 hover:bg-violet-600/50'
                 }`}
               >
                 📝 บันทึก Audit Stock
@@ -190,8 +204,8 @@ export default function StockApp() {
               onClick={() => setActiveTab('table')}
               className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
                 activeTab === 'table' 
-                  ? 'bg-white text-teal-900 shadow-sm' 
-                  : 'text-teal-900/70 hover:text-teal-950'
+                  ? 'bg-white text-violet-900 shadow-sm' 
+                  : 'text-violet-100 hover:bg-violet-600/50'
               }`}
             >
               📊 ตารางสต็อกคงเหลือ
@@ -202,7 +216,7 @@ export default function StockApp() {
         {/* ================= หน้าที่ 1: ฟอร์มบันทึก AUDIT ================= */}
         {activeTab === 'form' && userMode !== 'readonly' && (
           <div className="max-w-2xl mx-auto rounded-2xl bg-white p-6 md:p-8 shadow-sm border border-slate-200">
-            <h2 className="mb-6 text-xl font-bold text-pink-500 flex items-center gap-2 border-b pb-3 border-slate-100">
+            <h2 className="mb-6 text-xl font-bold text-pink-600 flex items-center gap-2 border-b pb-3 border-slate-100">
               <span>📝</span> บันทึกผล Audit Stock
             </h2>
             
@@ -210,7 +224,7 @@ export default function StockApp() {
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">หมวดหมู่</label>
                 <select 
-                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
                   value={formData.category}
                   onChange={(e) => {
                     const cat = e.target.value;
@@ -229,7 +243,7 @@ export default function StockApp() {
               <div>
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">รายการอุปกรณ์</label>
                 <select 
-                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
                   value={formData.item}
                   onChange={(e) => setFormData({...formData, item: e.target.value})}
                 >
@@ -245,7 +259,7 @@ export default function StockApp() {
                 <input 
                   type="text" 
                   placeholder="เช่น LOT-6901 / 77744UN25" 
-                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-300 font-mono"
+                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-400 font-mono"
                   value={formData.lot}
                   onChange={(e) => setFormData({...formData, lot: e.target.value})}
                 />
@@ -256,8 +270,9 @@ export default function StockApp() {
                 <input 
                   type="number" 
                   placeholder="0" 
+                  min="0"
                   required
-                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-400 font-semibold"
                   value={formData.count}
                   onChange={(e) => setFormData({...formData, count: e.target.value})}
                 />
@@ -269,7 +284,7 @@ export default function StockApp() {
                 </label>
                 <input 
                   type="date" 
-                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
                   value={formData.expDate}
                   onChange={(e) => setFormData({...formData, expDate: e.target.value})}
                 />
@@ -279,7 +294,7 @@ export default function StockApp() {
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">วันที่ Audit ล่าสุด</label>
                 <input 
                   type="date" 
-                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  className="w-full rounded-xl border border-slate-200 p-3.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-violet-400"
                   value={formData.auditDate}
                   onChange={(e) => setFormData({...formData, auditDate: e.target.value})}
                 />
@@ -303,7 +318,7 @@ export default function StockApp() {
                 <select 
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
                 >
                   <option>ทุกประเภท</option>
                   <option>พัสดุสำนักงาน</option>
@@ -315,7 +330,7 @@ export default function StockApp() {
                   placeholder="ค้นหารายการ หรือ เลข Lot..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"
+                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
                 />
               </div>
             </div>
@@ -336,45 +351,53 @@ export default function StockApp() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredData.map((item) => {
-                      const currentStatus = Number(item.count) <= 5 ? 'ใกล้หมด' : 'ปกติ';
+                    {filteredData.length > 0 ? (
+                      filteredData.map((item) => {
+                        const currentStatus = Number(item.count) <= 5 ? 'ใกล้หมด' : 'ปกติ';
 
-                      return (
-                        <tr key={item.id} className="hover:bg-slate-50 transition">
-                          <td className="p-4 text-slate-500">{item.category}</td>
-                          <td className="p-4 font-bold text-indigo-600">{item.name}</td>
-                          <td className="p-4 text-slate-600 font-mono font-semibold">{item.lot}</td>
-                          <td className="p-4 text-slate-500">{item.expire}</td>
-                          <td className="p-4 text-center font-bold text-indigo-600 text-sm">{item.count}</td>
-                          <td className="p-4 text-slate-500 font-mono">{item.auditDate || '-'}</td>
-                          <td className="p-4">
-                            <span className={`px-2.5 py-1 rounded-full font-semibold border ${
-                              currentStatus === 'ปกติ' 
-                                ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
-                                : 'bg-amber-100 text-amber-700 border-amber-200'
-                            }`}>
-                              {currentStatus}
-                            </span>
-                          </td>
-                          {userMode === 'admin' && (
-                            <td className="p-4 text-center space-x-1">
-                              <button 
-                                onClick={() => handleEditClick(item)}
-                                className="text-amber-600 hover:text-amber-800 font-semibold text-xs px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200"
-                              >
-                                แก้ไข
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(item.id)}
-                                className="text-red-500 hover:text-red-700 font-semibold text-xs px-2 py-1 rounded bg-red-50 hover:bg-red-100 border border-red-200"
-                              >
-                                ลบ
-                              </button>
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-50/80 transition">
+                            <td className="p-4 text-slate-500">{item.category}</td>
+                            <td className="p-4 font-bold text-indigo-600">{item.name}</td>
+                            <td className="p-4 text-slate-600 font-mono font-semibold">{item.lot}</td>
+                            <td className="p-4 text-slate-500">{item.expire}</td>
+                            <td className="p-4 text-center font-bold text-indigo-600 text-sm">{item.count}</td>
+                            <td className="p-4 text-slate-500 font-mono">{item.auditDate || '-'}</td>
+                            <td className="p-4">
+                              <span className={`px-2.5 py-1 rounded-full font-semibold border text-[11px] ${
+                                currentStatus === 'ปกติ' 
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                  : 'bg-amber-50 text-amber-700 border-amber-200'
+                              }`}>
+                                {currentStatus}
+                              </span>
                             </td>
-                          )}
-                        </tr>
-                      );
-                    })}
+                            {userMode === 'admin' && (
+                              <td className="p-4 text-center space-x-1 whitespace-nowrap">
+                                <button 
+                                  onClick={() => handleEditClick(item)}
+                                  className="text-amber-600 hover:text-amber-800 font-semibold text-xs px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 transition"
+                                >
+                                  แก้ไข
+                                </button>
+                                <button 
+                                  onClick={() => handleDelete(item.id)}
+                                  className="text-red-500 hover:text-red-700 font-semibold text-xs px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 transition"
+                                >
+                                  ลบ
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={userMode === 'admin' ? 8 : 7} className="p-8 text-center text-slate-400">
+                          ไม่พบข้อมูลรายการพัสดุ
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -390,7 +413,7 @@ export default function StockApp() {
                 <span>✏️ แก้ไขข้อมูลพัสดุ</span>
                 <button 
                   onClick={() => setEditingItem(null)}
-                  className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+                  className="text-slate-400 hover:text-slate-600 text-sm font-bold p-1"
                 >
                   ✕
                 </button>
@@ -413,7 +436,7 @@ export default function StockApp() {
                     type="text" 
                     value={editingItem.lot} 
                     onChange={(e) => setEditingItem({ ...editingItem, lot: e.target.value })}
-                    className="w-full border border-slate-200 rounded-lg p-2.5 font-mono focus:ring-2 focus:ring-teal-300"
+                    className="w-full border border-slate-200 rounded-lg p-2.5 font-mono focus:ring-2 focus:ring-violet-400"
                   />
                 </div>
 
@@ -421,10 +444,11 @@ export default function StockApp() {
                   <label className="block text-slate-500 font-semibold mb-1">จำนวนคงเหลือ</label>
                   <input 
                     type="number" 
+                    min="0"
                     required
                     value={editingItem.count} 
                     onChange={(e) => setEditingItem({ ...editingItem, count: Number(e.target.value) })}
-                    className="w-full border border-slate-200 rounded-lg p-2.5 font-bold focus:ring-2 focus:ring-teal-300"
+                    className="w-full border border-slate-200 rounded-lg p-2.5 font-bold focus:ring-2 focus:ring-violet-400"
                   />
                 </div>
 
@@ -434,7 +458,7 @@ export default function StockApp() {
                     type="text" 
                     value={editingItem.expire} 
                     onChange={(e) => setEditingItem({ ...editingItem, expire: e.target.value })}
-                    className="w-full border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-teal-300"
+                    className="w-full border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-violet-400"
                   />
                 </div>
 
@@ -444,7 +468,7 @@ export default function StockApp() {
                     type="date" 
                     value={editingItem.auditDate} 
                     onChange={(e) => setEditingItem({ ...editingItem, auditDate: e.target.value })}
-                    className="w-full border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-teal-300"
+                    className="w-full border border-slate-200 rounded-lg p-2.5 focus:ring-2 focus:ring-violet-400"
                   />
                 </div>
 
@@ -452,13 +476,13 @@ export default function StockApp() {
                   <button 
                     type="button" 
                     onClick={() => setEditingItem(null)}
-                    className="flex-1 py-2.5 rounded-lg border border-slate-200 font-semibold text-slate-600 hover:bg-slate-50"
+                    className="flex-1 py-2.5 rounded-lg border border-slate-200 font-semibold text-slate-600 hover:bg-slate-50 transition"
                   >
                     ยกเลิก
                   </button>
                   <button 
                     type="submit" 
-                    className="flex-1 py-2.5 rounded-lg bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm"
+                    className="flex-1 py-2.5 rounded-lg bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm transition"
                   >
                     บันทึกการแก้ไข
                   </button>
