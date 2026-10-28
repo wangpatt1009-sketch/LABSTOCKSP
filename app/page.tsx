@@ -199,7 +199,7 @@ export default function StockApp() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const mode = params.get('mode') as UserMode;
+      const mode = params.get('mode');
       if (mode === 'readonly') {
         setUserMode('readonly');
         setActiveTab('table');
@@ -483,7 +483,7 @@ export default function StockApp() {
       const latestAuditDate = sortedByAuditDate[0]?.auditDate || todayStr;
 
       result.push({
-        name: first.name, // Keep original casing of first item
+        name: first.name,
         category: first.category,
         unit: first.unit,
         minStock: first.minStock,
@@ -715,7 +715,7 @@ export default function StockApp() {
                                 <td colSpan={9} className="p-3 pl-12">
                                   <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-inner space-y-2">
                                     <div className="text-xs font-bold text-violet-900 flex justify-between items-center border-b pb-2">
-                                      <span>📦 รายละเอียด Lot ย่อยของ "{group.name}"</span>
+                                      <span>📦 รายละเอียด Lot ย่อยของ &quot;{group.name}&quot;</span>
                                       <span className="text-[10px] text-slate-400 font-normal">คลิก Quick Audit เพื่ออัปเดตยอดแยกตาม Lot ได้ทันที</span>
                                     </div>
                                     <table className="w-full text-left text-xs">
