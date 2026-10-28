@@ -211,8 +211,8 @@ export default function StockApp() {
       }
     }
 
-    const savedStock = localStorage.getItem('labstock_data_v3');
-    const savedHistory = localStorage.getItem('labstock_history_v3');
+    const savedStock = localStorage.getItem('labstock_data_v4');
+    const savedHistory = localStorage.getItem('labstock_history_v4');
 
     if (savedStock) {
       try { setStockList(JSON.parse(savedStock)); } catch { setStockList(initialStockData); }
@@ -232,14 +232,14 @@ export default function StockApp() {
   // Save Data
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem('labstock_data_v3', JSON.stringify(stockList));
-      localStorage.setItem('labstock_history_v3', JSON.stringify(auditHistory));
+      localStorage.setItem('labstock_data_v4', JSON.stringify(stockList));
+      localStorage.setItem('labstock_history_v4', JSON.stringify(auditHistory));
     }
   }, [stockList, auditHistory, isLoaded]);
 
   // Toggle Row Group Details
-  const toggleGroupExpand = (groupName: string) => {
-    setExpandedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }));
+  const toggleGroupExpand = (groupKey: string) => {
+    setExpandedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
   };
 
   // Compute Status
@@ -451,7 +451,7 @@ export default function StockApp() {
     document.body.removeChild(link);
   };
 
-  // Group Stock Items by Name
+  // Group Stock Items by Normalised Name (Fixed Grouping Logic)
   const groupedData: GroupedStockItem[] = React.useMemo(() => {
     const map = new Map<string, StockItem[]>();
 
@@ -461,7 +461,8 @@ export default function StockApp() {
       const matchesSearch = item.name.toLowerCase().includes(cleanSearch) || item.lot.toLowerCase().includes(cleanSearch);
 
       if (cleanCategory && matchesSearch) {
-        const key = item.name.trim();
+        // Normalise key: case insensitive and remove extra spaces
+        const key = item.name.trim().toLowerCase().replace(/\s+/g, ' ');
         if (!map.has(key)) {
           map.set(key, []);
         }
@@ -471,20 +472,18 @@ export default function StockApp() {
 
     const result: GroupedStockItem[] = [];
 
-    map.forEach((items, name) => {
+    map.forEach((items) => {
       const first = items[0];
       const totalCount = items.reduce((sum, i) => sum + i.count, 0);
       
-      // Sort nextAuditDate ascending to find earliest due
       const sortedByNextAudit = [...items].sort((a, b) => a.nextAuditDate.localeCompare(b.nextAuditDate));
       const earliestNextAudit = sortedByNextAudit[0]?.nextAuditDate || todayStr;
 
-      // Sort auditDate descending for latest audit
       const sortedByAuditDate = [...items].sort((a, b) => b.auditDate.localeCompare(a.auditDate));
       const latestAuditDate = sortedByAuditDate[0]?.auditDate || todayStr;
 
       result.push({
-        name,
+        name: first.name, // Keep original casing of first item
         category: first.category,
         unit: first.unit,
         minStock: first.minStock,
@@ -643,13 +642,14 @@ export default function StockApp() {
                       groupedData.map((group, idx) => {
                         const auditStatus = getAuditStatus(group.earliestNextAudit);
                         const isLowStock = group.totalCount <= group.minStock;
-                        const isExpanded = !!expandedGroups[group.name];
+                        const groupKey = group.name.trim().toLowerCase();
+                        const isExpanded = !!expandedGroups[groupKey];
 
                         return (
                           <React.Fragment key={idx}>
                             {/* Group Header Row */}
                             <tr 
-                              onClick={() => toggleGroupExpand(group.name)}
+                              onClick={() => toggleGroupExpand(groupKey)}
                               className={`hover:bg-slate-50/90 transition cursor-pointer select-none ${
                                 isExpanded ? 'bg-violet-50/40' : ''
                               }`}
